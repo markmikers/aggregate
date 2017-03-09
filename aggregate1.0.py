@@ -1,7 +1,13 @@
 import os
+import openpyxl
 import re
 
-os.chdir('./1')
+
+directories = []
+listdir = os.listdir('./')
+for entry in listdir:
+    if os.path.isdir(entry) and entry[0] != '.' and entry != '0':
+        directories.append(entry)
 
 atomic_coordinates = []
 atomic_sorts = []
@@ -60,54 +66,89 @@ def get_volume():
 
 
 def issue_results():
-    sys_name = ''
+    #define all necessary results
+    sys_name = []
     number_of_each_sort = []
-    for i in range(len(atomic_sorts)):
-        number_of_each_sort.append({'sort': atomic_sorts[i], 'number': number_of_atoms[i]})
-
-    for sort in number_of_each_sort:
-        sys_name += sort['sort'] + str(sort['number'])
-
-    total_number_of_atoms = 0
-    for atom in number_of_atoms:
-        total_number_of_atoms += int(atom)
-
-    concentration_of_first_sort = int(number_of_atoms[0]) / total_number_of_atoms
-
-    mag_tot = total_magnetization['magmom']
-
+    total_number_of_atoms = []
     magmom_by_sorts = []
     avg_magmom_by_sorts = []
-    for sort in atomic_sorts:
-        magmom = 0
-        n = 0
-        for atom in magnetic_properties:
-            if atom['sort'] == sort:
-                magmom += float(atom['magmom'])
-                n += 1
-        magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
-        avg_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
-
     abs_magmom_by_sorts = []
     avg_abs_magmom_by_sorts = []
-    for sort in atomic_sorts:
-        magmom = 0
-        n = 0
-        for atom in magnetic_properties:
-            if atom['sort'] == sort:
-                magmom += abs(float(atom['magmom']))
-                n += 1
-        abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
-        avg_abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
 
+    def collect_results():
+        for i in range(len(atomic_sorts)):
+            number_of_each_sort.append({'sort': atomic_sorts[i], 'number': number_of_atoms[i]})
+        for sort in number_of_each_sort:
+            sys_name.append(sort['sort'] + str(sort['number']))
+
+        for atom in number_of_atoms:
+            total_number_of_atoms.append(int(atom))
+
+        for sort in atomic_sorts:
+            magmom = 0
+            n = 0
+            for atom in magnetic_properties:
+                if atom['sort'] == sort:
+                    magmom += float(atom['magmom'])
+                    n += 1
+            magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
+            avg_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
+
+        for sort in atomic_sorts:
+            magmom = 0
+            n = 0
+            for atom in magnetic_properties:
+                if atom['sort'] == sort:
+                    magmom += abs(float(atom['magmom']))
+                    n += 1
+            abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
+            avg_abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
+        return
+
+
+    def produce_results():
+        nat = ''
+        for n in number_of_atoms:
+            nat += str(n) + '\t'
+        magmoms = ''
+        for i in range(len(magmom_by_sorts)):
+            magmoms += str(magmom_by_sorts[i]['magmom']) + '\t' + str(abs_magmom_by_sorts[i]['magmom']) + '\t' + \
+                       str(avg_magmom_by_sorts[i]['magmom']) + '\t' + str(avg_abs_magmom_by_sorts[i]['magmom']) + '\t'
+
+        line = sys_name + '\t' + str(total_number_of_atoms) + '\t' + nat + str(concentration_of_first_sort) + \
+               '\t' + mag_tot + '\t' + magmoms + str(volume) + '\t' + str(volume_per_atom) + '\t' + \
+               str(energy) + '\n'
+        return line
+
+    collect_results()
+    # easily calculated properties
+    total_number_of_atoms = sum(total_number_of_atoms)
+    sys_name = ''.join(sys_name)
+    concentration_of_first_sort = float(number_of_atoms[0]) / float(total_number_of_atoms)
+    mag_tot = total_magnetization['magmom']
     volume_per_atom = volume / total_number_of_atoms
 
-poscar = read_file('POSCAR')
-outcar = read_file('OUTCAR')
+    return produce_results()
 
-get_atomic_properties()
-total_magnetization = get_magnetic_properties()
-volume = get_volume()
-energy = get_energy()
+textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM1\tMM1abs\tMM1avg\tMM1avgabs\tMM2\tMM2abs\tMM2avg\tMM2avgabs\tVolume\tV/at\tEnergy\n'
 
-issue_results()
+for directory in directories:
+    os.chdir('./' + directory)
+
+    poscar = read_file('POSCAR')
+    outcar = read_file('OUTCAR')
+
+    get_atomic_properties()
+    total_magnetization = get_magnetic_properties()
+    volume = get_volume()
+    energy = get_energy()
+
+    textfile += issue_results()
+    os.chdir('../')
+
+print textfile
+
+# fsock = open('aggregated.txt', 'w').write(textfile)
+
+def produce_excel():
+    return
