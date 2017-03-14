@@ -9,10 +9,6 @@ for entry in listdir:
     if os.path.isdir(entry) and entry[0] != '.' and entry != '0':
         directories.append(entry)
 
-atomic_coordinates = []
-atomic_sorts = []
-number_of_atoms = []
-magnetic_properties = []
 
 def read_file(file_name):
     file_socket = open(file_name, 'r')
@@ -110,13 +106,12 @@ def issue_results():
         nat = ''
         for n in number_of_atoms:
             nat += str(n) + '\t'
-        magmoms = ''
+        mag_avgs = ''
         for i in range(len(magmom_by_sorts)):
-            magmoms += str(magmom_by_sorts[i]['magmom']) + '\t' + str(abs_magmom_by_sorts[i]['magmom']) + '\t' + \
-                       str(avg_magmom_by_sorts[i]['magmom']) + '\t' + str(avg_abs_magmom_by_sorts[i]['magmom']) + '\t'
-
+            mag_avgs += str(avg_magmom_by_sorts[i]['magmom']) + '\t'
+            ### str(magmom_by_sorts[i]['magmom']) + '\t' + str(abs_magmom_by_sorts[i]['magmom']) + '\t' + str(avg_abs_magmom_by_sorts[i]['magmom'])
         line = sys_name + '\t' + str(total_number_of_atoms) + '\t' + nat + str(concentration_of_first_sort) + \
-               '\t' + mag_tot + '\t' + magmoms + str(volume) + '\t' + str(volume_per_atom) + '\t' + \
+               '\t' + mag_tot + '\t' + str(mag_avg) + '\t' + mag_avgs + str(volume) + '\t' + str(volume_per_atom) + '\t' + \
                str(energy) + '\n'
         return line
 
@@ -126,6 +121,7 @@ def issue_results():
     sys_name = ''.join(sys_name)
     concentration_of_first_sort = float(number_of_atoms[0]) / float(total_number_of_atoms)
     mag_tot = total_magnetization['magmom']
+    mag_avg = float(total_magnetization['magmom']) / float(total_number_of_atoms)
     volume_per_atom = volume / total_number_of_atoms
 
     return produce_results()
@@ -133,6 +129,11 @@ def issue_results():
 textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM1\tMM1abs\tMM1avg\tMM1avgabs\tMM2\tMM2abs\tMM2avg\tMM2avgabs\tVolume\tV/at\tEnergy\n'
 
 for directory in directories:
+    atomic_coordinates = []
+    atomic_sorts = []
+    number_of_atoms = []
+    magnetic_properties = []
+
     os.chdir('./' + directory)
 
     poscar = read_file('POSCAR')
@@ -148,7 +149,7 @@ for directory in directories:
 
 print textfile
 
-# fsock = open('aggregated.txt', 'w').write(textfile)
+fsock = open('aggregated.txt', 'w').write(textfile)
 
-def produce_excel():
-    return
+# def produce_excel():
+#     return
