@@ -1,5 +1,5 @@
 import os
-import openpyxl
+#import openpyxl
 import re
 
 
@@ -27,14 +27,17 @@ def get_atomic_properties():
     # print split_poscar
     for atom in split_poscar:
         atom = atom.rstrip()
-        if not(atom[-4:-2] in atomic_sorts):
-            atomic_sorts.append(atom[-4:-2])
+        # print atom
+        if not(re.sub('[^a-zA-Z]+', '', atom) in atomic_sorts):
+            atomic_sorts.append(re.sub('[^a-zA-Z]+', '', atom))
     poscar_string = '\n'.join(split_poscar)
     for sort in atomic_sorts:
         number_of_atoms.append(poscar_string.count(sort))
     for line in split_poscar:
         split_line = line.split()
-        atomic_coordinates.append({'x': split_line[0], 'y': split_line[1], 'z': split_line[2], 'sort': split_line[3][:-2]})
+        split_line[3] = re.sub('[^a-zA-Z]+', '', split_line[3])
+        # print split_line[3]
+        atomic_coordinates.append({'x': split_line[0], 'y': split_line[1], 'z': split_line[2], 'sort': split_line[3]})
     return
 
 
@@ -46,13 +49,14 @@ def get_magnetic_properties():
     i = 0
     for atom in split_magnetic_part[2:-2]:
         atom = atom.rstrip().split()
+        # print atomic_coordinates[i]['sort']
         magnetic_properties.append({'sort': atomic_coordinates[i]['sort'], 's': atom[1], 'p': atom[2], 'd': atom[3], 'magmom': atom[4]})
         i += 1
     return total_magnetization
 
 
 def get_energy():
-    energy = outcar[outcar.rfind('free  energy   TOTEN  =')+30:outcar.rfind(' eV')].rstrip()
+    energy = outcar[outcar.rfind('free  energy   TOTEN  =')+29:outcar.rfind(' eV')].rstrip()
     return float(energy)
 
 
@@ -76,6 +80,7 @@ def issue_results():
             number_of_each_sort.append({'sort': atomic_sorts[i], 'number': number_of_atoms[i]})
         for sort in number_of_each_sort:
             sys_name.append(sort['sort'] + str(sort['number']))
+        sys_name.append('_' + directory)
 
         for atom in number_of_atoms:
             total_number_of_atoms.append(int(atom))
@@ -85,20 +90,21 @@ def issue_results():
             n = 0
             for atom in magnetic_properties:
                 if atom['sort'] == sort:
+                    # print n
                     magmom += float(atom['magmom'])
                     n += 1
             magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
             avg_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
 
-        for sort in atomic_sorts:
-            magmom = 0
-            n = 0
-            for atom in magnetic_properties:
-                if atom['sort'] == sort:
-                    magmom += abs(float(atom['magmom']))
-                    n += 1
-            abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
-            avg_abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
+        #for sort in atomic_sorts:
+        #    magmom = 0
+        #    n = 0
+        #    for atom in magnetic_properties:
+        #        if atom['sort'] == sort:
+        #            magmom += abs(float(atom['magmom']))
+        #            n += 1
+        #    abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom})
+        #    avg_abs_magmom_by_sorts.append({'sort': sort, 'magmom': magmom / n})
         return
 
 
@@ -126,7 +132,46 @@ def issue_results():
 
     return produce_results()
 
-textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM1\tMM1abs\tMM1avg\tMM1avgabs\tMM2\tMM2abs\tMM2avg\tMM2avgabs\tVolume\tV/at\tEnergy\n'
+textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM_avg\tMM1avg\tMM2avg\tVolume\tV/at\tEnergy\n'
+#textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM1\tMM1abs\tMM1avg\tMM1avgabs\tMM2\tMM2abs\tMM2avg\tMM2avgabs\tVolume\tV/at\tEnergy\n'
+
+def create_newposcar():
+    newposcar = poscar.split('\n')[:7] #np
+    np_atoms = []
+    magmom_sorts = []
+    magmom_sort_count = []
+    for i in range(len(atomic_coordinates)):
+        np_atoms.append([atomic_coordinates[i]['x'], atomic_coordinates[i]['y'], atomic_coordinates[i]['z'],
+                         atomic_coordinates[i]['sort'], float(magnetic_properties[i]['magmom'])])
+    np_atoms = sorted(np_atoms, key=lambda atom: atom[-1])
+
+    minuses = 0
+    for atom in np_atoms:
+        if not(atom[-1] in magmom_sorts):
+            magmom_sorts.append(atom[-1])
+            if atom[-1] < 0:
+                minuses += 1
+    for sort in magmom_sorts:
+        count = 0
+        for i in np_atoms:
+            if i[-1] == sort:
+                count += 1
+        magmom_sort_count.append(count)
+    for i in range(len(magmom_sort_count)):
+        magmom_sort_count[i] = str(magmom_sort_count[i])
+
+    magmom_sort_count = ' '.join(magmom_sort_count)
+    newposcar[5] = magmom_sort_count
+
+    for i in range(len(np_atoms)):
+        np_atoms[i][-1] = str(np_atoms[i][-1])
+        np_atoms[i] = ' '.join(np_atoms[i])[::-1].replace(' ', '', 1)[::-1]
+
+    newposcar = newposcar + np_atoms
+    newposcar = '\n'.join(newposcar)
+
+    fsock = open('NEWPOSCAR-' + str(len(magmom_sorts)) + '-' + str(minuses) + '-' + str(len(magmom_sorts) - minuses), 'w').write(newposcar)
+
 
 for directory in directories:
     atomic_coordinates = []
@@ -145,10 +190,10 @@ for directory in directories:
     energy = get_energy()
 
     textfile += issue_results()
+    create_newposcar()
     os.chdir('../')
 
-print textfile
-
+#print textfile
 fsock = open('aggregated.txt', 'w').write(textfile)
 
 # def produce_excel():
