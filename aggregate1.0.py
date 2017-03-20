@@ -6,7 +6,7 @@ import re
 directories = []
 listdir = os.listdir('./')
 for entry in listdir:
-    if os.path.isdir(entry) and entry[0] != '.' and entry != '0':
+    if os.path.isdir(entry) and entry[0] != '.':
         directories.append(entry)
 
 
@@ -19,15 +19,8 @@ def read_file(file_name):
 
 def get_atomic_properties():
     split_poscar = poscar.rstrip().split('\n')[7:]
-    # for line in split_poscar:
-    #     if len(line.split()) > 2:
-    #         atomic_coordinates = split_poscar[split_poscar.index(line):]
-    #         break
-    # print atomic_coordinates
-    # print split_poscar
     for atom in split_poscar:
         atom = atom.rstrip()
-        # print atom
         if not(re.sub('[^a-zA-Z]+', '', atom) in atomic_sorts):
             atomic_sorts.append(re.sub('[^a-zA-Z]+', '', atom))
     poscar_string = '\n'.join(split_poscar)
@@ -36,7 +29,6 @@ def get_atomic_properties():
     for line in split_poscar:
         split_line = line.split()
         split_line[3] = re.sub('[^a-zA-Z]+', '', split_line[3])
-        # print split_line[3]
         atomic_coordinates.append({'x': split_line[0], 'y': split_line[1], 'z': split_line[2], 'sort': split_line[3]})
     return
 
@@ -49,7 +41,6 @@ def get_magnetic_properties():
     i = 0
     for atom in split_magnetic_part[2:-2]:
         atom = atom.rstrip().split()
-        # print atomic_coordinates[i]['sort']
         magnetic_properties.append({'sort': atomic_coordinates[i]['sort'], 's': atom[1], 'p': atom[2], 'd': atom[3], 'magmom': atom[4]})
         i += 1
     return total_magnetization
@@ -193,7 +184,6 @@ for directory in directories:
     create_newposcar()
     os.chdir('../')
 
-#print textfile
 fsock = open('aggregated.txt', 'w').write(textfile)
 
 # def produce_excel():
