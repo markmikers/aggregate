@@ -2,12 +2,9 @@ import os
 import openpyxl
 import re
 
+working_directory = os.getcwd()
 
-directories = []
-listdir = os.listdir('./')
-for entry in listdir:
-    if os.path.isdir(entry) and entry[0] != '.':
-        directories.append(entry)
+directories = [x for x in os.listdir(working_directory) if (os.path.isdir(x)) and (x[0] != '.')]
 
 
 def read_file(file_name):
@@ -109,7 +106,7 @@ def issue_results():
             ### str(magmom_by_sorts[i]['magmom']) + '\t' + str(abs_magmom_by_sorts[i]['magmom']) + '\t' + str(avg_abs_magmom_by_sorts[i]['magmom'])
         line = sys_name + '\t' + str(total_number_of_atoms) + '\t' + nat + str(concentration_of_first_sort) + \
                '\t' + mag_tot + '\t' + str(mag_avg) + '\t' + mag_avgs + str(volume) + '\t' + str(volume_per_atom) + '\t' + \
-               str(energy) + '\n'
+               str(energy) + '\n' + assumed_mag_struct + '\n'
         return line
 
     collect_results()
@@ -123,10 +120,11 @@ def issue_results():
 
     return produce_results()
 
-textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM_avg\tMM1avg\tMM2avg\tVolume\tV/at\tEnergy\n'
+textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM_avg\tMM1avg\tMM2avg\tVolume\tV/at\tEnergy\tAssumedMS\n'
 #textfile = 'SysName\tNat\tN1\tN2\tC1\tMagMom\tMM1\tMM1abs\tMM1avg\tMM1avgabs\tMM2\tMM2abs\tMM2avg\tMM2avgabs\tVolume\tV/at\tEnergy\n'
 
-def create_newposcar():
+
+def create_newposcar(): # and assume magnetic structure
     newposcar = poscar.split('\n')[:7] #np
     np_atoms = []
     magmom_sorts = []
@@ -135,6 +133,16 @@ def create_newposcar():
         np_atoms.append([atomic_coordinates[i]['x'], atomic_coordinates[i]['y'], atomic_coordinates[i]['z'],
                          atomic_coordinates[i]['sort'], float(magnetic_properties[i]['magmom'])])
     np_atoms = sorted(np_atoms, key=lambda atom: atom[-1])
+
+    against_z = any(atom[-1] < 0 for atom in np_atoms)
+    along_z = any(atom[-1] > 0 for atom in np_atoms)
+    assumed_mag_struct = ''
+    if (along_z + against_z) == 0:
+        assumed_mag_struct = 'NM'
+    elif (along_z == 0) or (against_z == 0):
+        assumed_mag_struct = 'FM'
+    else:
+        assumed_mag_struct = 'AFM/FiM'
 
     minuses = 0
     for atom in np_atoms:
@@ -162,7 +170,7 @@ def create_newposcar():
     newposcar = '\n'.join(newposcar)
 
     fsock = open('NEWPOSCAR-' + str(len(magmom_sorts)) + '-' + str(minuses) + '-' + str(len(magmom_sorts) - minuses), 'w').write(newposcar)
-
+    return assumed_mag_struct
 
 for directory in directories:
     atomic_coordinates = []
@@ -180,8 +188,8 @@ for directory in directories:
     volume = get_volume()
     energy = get_energy()
 
+    assumed_mag_struct = create_newposcar()
     textfile += issue_results()
-    create_newposcar()
     os.chdir('../')
 
 fsock = open('aggregated.txt', 'w').write(textfile)
